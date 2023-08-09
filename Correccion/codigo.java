@@ -25,7 +25,9 @@ class codigo {
         
         // se usa este for para pasarlo a un array
         for (int i = 0; i < numberStrings.length; i++) {
-            arr[i] = Integer.parseInt(numberStrings[i]);
+            if (!numberStrings[i].equals(" ")) {
+                arr[i] = Integer.parseInt(numberStrings[i]);
+            }
         }
         
         for (int num : arr) {
