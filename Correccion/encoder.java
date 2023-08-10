@@ -10,6 +10,17 @@ public class encoder {
         return m;
     }
 
+        //en este se calcula la paridad y en el anterior los bits de paridad
+    public static int calculateParity(int[] data, int parityBitPosition) {
+        int xorResult = 0;
+        for (int i = 0; i < data.length; i++) {
+            if (((i + 1) & (1 << parityBitPosition)) != 0) {
+                xorResult ^= data[i];
+            }
+        }
+        
+        return xorResult;
+    }
 
     
 }
