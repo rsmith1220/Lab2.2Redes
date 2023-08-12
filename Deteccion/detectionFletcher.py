@@ -1,60 +1,61 @@
+import random
 
-# import random
-
-# def generate_data_received(data, num_errors):
-#     data_received = data[:]
-#     error_positions = random.sample(range(len(data_received)), num_errors)
-#     for pos in error_positions:
-#         data_received = data_received[:pos] + ('0' if data_received[pos] == '1' else '1') + data_received[pos+1:]
-
-#     return data_received
-
-def fletcher_checksum(data, block_size):
-    padding_length = block_size - (len(data) % block_size)
-    data += '0' * padding_length
-    data_bytes = [int(data[i:i+8], 2) for i in range(0, len(data), 8)]
+# Funciones para el cálculo de Fletcher
+def fletcher_checksum(data):
     sum1 = 0
     sum2 = 0
+    mod = 255
 
-    for i in range(0, len(data_bytes), block_size):
-        block = data_bytes[i:i + block_size]
-        for byte in block:
-            sum1 = (sum1 + byte) % 255
-            sum2 = (sum2 + sum1) % 255
+    for byte in data:
+        sum1 = (sum1 + byte) % mod
+        sum2 = (sum2 + sum1) % mod
 
     checksum = (sum2 << 8) | sum1
     return checksum
 
+def verify_checksum(data, checksum):
+    calculated_checksum = fletcher_checksum(data)
+    return calculated_checksum == checksum
 
-def verify_checksum(data, checksum, block_size):
-    calculated_checksum = fletcher_checksum(data, block_size)
-    if calculated_checksum == checksum:
-        print("El checksum es válido.")
+# Capa de Enlace y Ruido
+def generar_trama(mensaje):
+    codigo_binario = ''.join(format(ord(char), '08b') for char in mensaje)
+    data = [int(codigo_binario[i:i+8], 2) for i in range(0, len(codigo_binario), 8)]
+    checksum = fletcher_checksum(data)
+    trama_con_integridad = codigo_binario + format(checksum, '016b')  # Agregar checksum
+
+    # Aplicar ruido (probabilidad de 0.01)
+    trama_con_ruido = ''.join(bit if random.random() > 0.01 else str(1 - int(bit)) for bit in trama_con_integridad)
+
+    return trama_con_ruido
+
+# Capa de Enlace
+def recibir_trama(trama_recibida):
+    trama_recibida_sin_ruido = trama_recibida.replace(" ", "")  # Eliminar ruido
+    received_checksum = trama_recibida_sin_ruido[-16:]  # Extraer checksum recibido
+    received_data = trama_recibida_sin_ruido[:-16]
+    received_data = [int(received_data[i:i+8], 2) for i in range(0, len(received_data), 8)]
+    is_checksum_valid = verify_checksum(received_data, int(received_checksum, 2))
+
+    if is_checksum_valid:
+        mensaje_decodificado = ''.join(chr(byte) for byte in received_data)
+        return mensaje_decodificado
     else:
-        print("Error: El checksum no coincide. Se han detectado errores en la trama de datos.")
+        return "Error: Se detectaron errores en la trama."
 
-        data_bytes = [int(data[i:i+8], 2) for i in range(0, len(data), 8)]
-        data_received_bytes = [int(data_received[i:i+8], 2) for i in range(0, len(data_received), 8)]
+# Función principal
+def main():
+    mensaje = input("Ingrese el mensaje a enviar: ")
 
-        for i in range(len(data_bytes)):
-            if data_bytes[i] != data_received_bytes[i]:
-                error_position = i * 8
-                print(f"Posición {error_position}: Valor original: {bin(data_bytes[i])[2:].zfill(8)}, Valor recibido: {bin(data_received_bytes[i])[2:].zfill(8)}")
+    # Generar trama con integridad y ruido
+    trama_enviada = generar_trama(mensaje)
 
-data = input("Ingrese la trama de datos en formato binario: ")
-block_size = int(input("Ingrese el tamaño del bloque (8, 16 o 32): "))
+    # Emisor envía la trama al receptor
+    print("Trama enviada:", trama_enviada)
 
-if block_size not in [8, 16, 32]:
-    print("Tamaño de bloque inválido. Por favor, ingrese 8, 16 o 32.")
-else:
-    padding = "0" * (block_size - (len(data) % block_size))
+    # Receptor recibe y procesa la trama
+    mensaje_recibido = recibir_trama(trama_enviada)
+    print("Mensaje recibido:", mensaje_recibido)
 
-    checksum = fletcher_checksum(data, block_size)
-    print("Checksum calculado para datos originales:", bin(checksum)[2:].zfill(block_size))
-
-    data_received = data
-
-    checksum_received = fletcher_checksum(data_received, block_size)
-    print("Trama de datos recibidos sin errores:", data_received + padding)
-    print("Checksum recibido:", bin(checksum_received)[2:].zfill(block_size))
-    verify_checksum(data, checksum_received, block_size)
+if __name__ == "__main__":
+    main()
